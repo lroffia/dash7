@@ -17,7 +17,7 @@ public class Dash7CoordinatorSimulator {
 	
 	public static void main(String[] args) throws FileNotFoundException, InterruptedException {
         System.out.println("Dash7 Simulator is running...press <ctrl + c> to exit");
-		mainThread = new SerialReaderThread("/usr/commap/com1");
+		mainThread = new SerialReaderThread("/Users/luca/Documents/bin/commap/com1");
 		mainThread.start();
 	}
 	
@@ -26,9 +26,15 @@ public class Dash7CoordinatorSimulator {
     	private FileOutputStream out = null;
     	private FileInputStream in = null;
         
+    	//Temperature
     	private byte temperature = 0;
         private byte temperatureDecimal = 0;
         
+        //Battery
+        private int vrefIntCal = 0x067E;
+    	private int vrefIntData = 0x07CF;
+    	private int vrefMonData = 0x0D81;
+    	
         public synchronized void updateTemp() {
         	//Update simulated temperature
 			if (temperatureDecimal == 3) {
@@ -36,6 +42,11 @@ public class Dash7CoordinatorSimulator {
 				temperature++;
 			}
 			else temperatureDecimal++;	
+        }
+        
+        public synchronized void updateBattery() {
+        	vrefMonData = vrefMonData-100;
+        	if (vrefMonData < 0) vrefMonData = 0x0D81; 
         }
         
     	class NodeSimulator extends Thread {
@@ -57,7 +68,7 @@ public class Dash7CoordinatorSimulator {
     		
     		public void run() {
     			switch(cmd) {
-    				case STDash7Coordinator.ALP_CMD_READ_TEMP_CMD:
+    				case STDash7Coordinator.ALP_GET_BATTERY_STATUS_REQUEST:
     					//Simulate delay...
     					delayR = Math.random();
         				delay = 1000 + Math.round(delayR*4000);
@@ -68,6 +79,39 @@ public class Dash7CoordinatorSimulator {
     					for (int i=0; i < addrLen; i++) node_id[i] = payload[i + 1];
     					
     					String output = "Node[0x";
+    					for (int i=0; i < node_id.length ; i ++) output += String.format("%02X",node_id[i]);
+    					output += String.format("] reading battery in %d ms...\n", delay);
+    					System.out.println(output);
+    				
+    					//Payload (nod_id len + node_id + + data len + battery info)
+    					payload = new byte[node_id.length + 7];
+    					payload[0] = (byte)(addrLen & 0xFF);
+    					for (int i=0; i < addrLen; i++) payload[i + 1] = node_id[i];
+    					
+    					payload[addrLen+1]= (byte)((vrefIntCal >> 8) & 0xFF);
+    					payload[addrLen+2]= (byte)(vrefIntCal  & 0xFF);
+    					payload[addrLen+3]= (byte)((vrefIntData >> 8) & 0xFF);
+    					payload[addrLen+4]= (byte)(vrefIntData  & 0xFF);
+    					payload[addrLen+5]= (byte)((vrefMonData >> 8) & 0xFF);
+    					payload[addrLen+6]= (byte)(vrefMonData  & 0xFF);
+    					
+    					updateBattery();
+    					
+    					//Response command
+    					alpCmdReply = STDash7Coordinator.ALP_BATTERY_REPLY;
+    					
+    					break;
+    				case STDash7Coordinator.ALP_GET_TEMPERATURE_REQUEST:
+    					//Simulate delay...
+    					delayR = Math.random();
+        				delay = 1000 + Math.round(delayR*4000);
+        				
+    					//Node id
+    					addrLen = payload[0] & 0xFF;
+    					node_id = new byte[addrLen];
+    					for (int i=0; i < addrLen; i++) node_id[i] = payload[i + 1];
+    					
+    					output = "Node[0x";
     					for (int i=0; i < node_id.length ; i ++) output += String.format("%02X",node_id[i]);
     					output += String.format("] reading temperature in %d ms...\n", delay);
     					System.out.println(output);
@@ -83,11 +127,11 @@ public class Dash7CoordinatorSimulator {
     					updateTemp();
     					
     					//Response command
-    					alpCmdReply = STDash7Coordinator.ALP_TEMP_REPLY;
+    					alpCmdReply = STDash7Coordinator.ALP_TEMPERATURE_REPLY;
 
     					break;
     					
-    				case STDash7Coordinator.ALP_CMD_SET_VALVE_CMD:
+    				case STDash7Coordinator.ALP_SET_VALVE_REQUEST:
     					//Check value range (0-100)
     					int percent = payload[payload.length-1] & 0xFF;
     					if (percent > 100) {
@@ -213,7 +257,7 @@ public class Dash7CoordinatorSimulator {
 				}
     			
     			//Parse Dash7 message
-        		if (inBuffer[4] != STDash7Coordinator.ALP_ID || (inBuffer[5] != STDash7Coordinator.ALP_CMD_READ_TEMP_CMD && inBuffer[5] != STDash7Coordinator.ALP_CMD_SET_VALVE_CMD)) continue;
+        		if (inBuffer[4] != STDash7Coordinator.ALP_ID || !STDash7Coordinator.isCommandImplemented(inBuffer[5])) continue;
 					
 	        	dash7PayloadLen = 0;
 	        	dash7PacketOffset = 0;

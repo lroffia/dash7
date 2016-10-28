@@ -11,17 +11,17 @@ public class STDash7Coordinator extends OTComSocket {
 	// Node Address Len (1 Byte) | Node Address (1-32 bytes) | Payload len (1 byte) | Payload (0-221 bytes)
 	public static final byte ALP_ID = (byte) 0xF8;
 	
-	public static final byte ALP_CMD_READ_TEMP_CMD = 0x08;
-	public static final byte ALP_TEMP_REPLY = (byte) 0x18;
+	public static final byte ALP_GET_TEMPERATURE_REQUEST = 0x08;
+	public static final byte ALP_TEMPERATURE_REPLY = (byte) 0x18;
 	
-	public static final byte ALP_CMD_SET_VALVE_CMD = 0x28;
+	public static final byte ALP_SET_VALVE_REQUEST = 0x28;
 	public static final byte ALP_VALVE_REPLY = (byte) 0x38;
 	
-	public static final byte ALP_CMD_GET_VALVE_STATUS = 0x48;
+	public static final byte ALP_GET_VALVE_STATUS_REQUEST = 0x48;
 	public static final byte ALP_STATUS_REPLY = 0x58;
 	
-	public static final byte ALP_CMD_GET_BATTERY_STATUS = 0x68;
-	public static final byte ALP_BATTERY_STATUS_REPLY = 0x78;
+	public static final byte ALP_GET_BATTERY_STATUS_REQUEST = 0x68;
+	public static final byte ALP_BATTERY_REPLY = 0x78;
 	
 	public static final byte ALP_UNKNOWN_CMD_REPLY= (byte) 0xFE;
 	
@@ -29,6 +29,13 @@ public class STDash7Coordinator extends OTComSocket {
 	public static final byte ST_DASH7_ACK = (byte) 0x00;
 	public static final byte ST_STATUS_RUNNING = (byte) 0x01;
 	public static final byte ST_STATUS_STOPPED = (byte) 0x00;
+	
+	public static boolean isCommandImplemented(byte cmd) {
+		return (cmd == ALP_GET_TEMPERATURE_REQUEST ||
+				cmd == ALP_SET_VALVE_REQUEST ||
+				cmd == ALP_GET_VALVE_STATUS_REQUEST || 
+				cmd == ALP_GET_BATTERY_STATUS_REQUEST);
+	}
 	
 	public class Notify {
 		public String id;
@@ -53,10 +60,10 @@ public class STDash7Coordinator extends OTComSocket {
 		
 		if (packet[4] != ALP_ID) return;
 		
-		if (packet[5] != ALP_TEMP_REPLY && 
+		if (packet[5] != ALP_TEMPERATURE_REPLY && 
 			packet[5] != ALP_VALVE_REPLY &&
 			packet[5] != ALP_STATUS_REPLY &&
-			packet[5] != ALP_BATTERY_STATUS_REPLY
+			packet[5] != ALP_BATTERY_REPLY
 			) return;
 		
 		byte[] payload = OTComSocket.GetDash7Payload(packet);
@@ -64,7 +71,7 @@ public class STDash7Coordinator extends OTComSocket {
 		Notify notify = null;
 		
 		switch(packet[5]){
-			case ALP_TEMP_REPLY:
+			case ALP_TEMPERATURE_REPLY:
 				notify = new TemperatureNotify();
 				((TemperatureNotify)notify).temperature = GetTemp(payload);
 				break;
@@ -76,7 +83,7 @@ public class STDash7Coordinator extends OTComSocket {
 				notify = new StatusNotify();
 				((StatusNotify)notify).status = GetStatus(payload);
 				break;
-			case ALP_BATTERY_STATUS_REPLY:
+			case ALP_BATTERY_REPLY:
 				notify = new BatteryNotify();
 				((BatteryNotify)notify).vBatt = GetBatteryStatus(payload);
 				break;
@@ -135,7 +142,7 @@ public class STDash7Coordinator extends OTComSocket {
 		for (int i=0; i < node_id.length; i++) payload[1+i] = node_id[i]; // Address
 		payload[payload.length - 1] = 0; // Data len = 0
 		
-		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_CMD_READ_TEMP_CMD,payload,sequence++); 
+		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_GET_TEMPERATURE_REQUEST,payload,sequence++); 
 		
 		writeOverOTCom(dash7);
 	}
@@ -148,7 +155,7 @@ public class STDash7Coordinator extends OTComSocket {
 		payload[payload.length - 2 ] = 0x01; // Data len = 1
 		payload[payload.length - 1 ] = value; // Data
 		
-		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_CMD_SET_VALVE_CMD,payload,sequence++); 
+		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_SET_VALVE_REQUEST,payload,sequence++); 
 		
 		writeOverOTCom(dash7);
 	}
@@ -160,7 +167,7 @@ public class STDash7Coordinator extends OTComSocket {
 		for (int i=0; i < node_id.length; i++) payload[1+i] = node_id[i]; // Address
 		payload[payload.length - 1] = 0; // Data len = 0
 		
-		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_CMD_GET_VALVE_STATUS,payload,sequence++); 
+		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_GET_VALVE_STATUS_REQUEST,payload,sequence++); 
 		
 		writeOverOTCom(dash7);
 	}
@@ -172,7 +179,7 @@ public class STDash7Coordinator extends OTComSocket {
 		for (int i=0; i < node_id.length; i++) payload[1+i] = node_id[i]; // Address
 		payload[payload.length - 1] = 0; // Data len = 0
 		
-		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_CMD_GET_BATTERY_STATUS,payload,sequence++); 
+		byte[] dash7 = OTComSocket.Dash7Packet(ALP_ID, ALP_GET_BATTERY_STATUS_REQUEST,payload,sequence++); 
 		
 		writeOverOTCom(dash7);
 	}
