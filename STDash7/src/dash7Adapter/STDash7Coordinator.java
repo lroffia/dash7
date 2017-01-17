@@ -23,6 +23,8 @@ public class STDash7Coordinator extends OTComSocket {
 	public static final byte ALP_GET_BATTERY_STATUS_REQUEST = 0x68;
 	public static final byte ALP_BATTERY_REPLY = 0x78;
 	
+	public static final byte ALP_BEACON = (byte) 0x98;
+	
 	public static final byte ALP_UNKNOWN_CMD_REPLY= (byte) 0xFE;
 	
 	public static final byte ST_DASH7_NACK = (byte) 0xFF;
@@ -52,6 +54,9 @@ public class STDash7Coordinator extends OTComSocket {
 	public class BatteryNotify extends Notify {
 		public float vBatt;
 	}
+	public class BeaconNotify extends Notify {
+		
+	}
 	
 	//Notify DASH7 payload
 	@Override
@@ -63,7 +68,8 @@ public class STDash7Coordinator extends OTComSocket {
 		if (packet[5] != ALP_TEMPERATURE_REPLY && 
 			packet[5] != ALP_VALVE_REPLY &&
 			packet[5] != ALP_STATUS_REPLY &&
-			packet[5] != ALP_BATTERY_REPLY
+			packet[5] != ALP_BATTERY_REPLY && 
+			packet[5] != ALP_BEACON
 			) return;
 		
 		byte[] payload = OTComSocket.GetDash7Payload(packet);
@@ -87,7 +93,9 @@ public class STDash7Coordinator extends OTComSocket {
 				notify = new BatteryNotify();
 				((BatteryNotify)notify).vBatt = GetBatteryStatus(payload);
 				break;
-				
+			case ALP_BEACON:
+				notify = new BeaconNotify();
+				break;
 		}
 		notify.id = GetID(payload);
 		

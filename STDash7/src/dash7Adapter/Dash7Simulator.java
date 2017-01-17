@@ -12,13 +12,57 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class Dash7CoordinatorSimulator {
+public class Dash7Simulator {
 	private static SerialReaderThread mainThread = null;
 	
-	public static void main(String[] args) throws FileNotFoundException, InterruptedException {
-        System.out.println("Dash7 Simulator is running...press <ctrl + c> to exit");
-		mainThread = new SerialReaderThread("/Users/luca/Documents/bin/commap/com1");
+	public static void main(String[] args) {
+		System.out.println("Invoked with "+args.length+" arguments");
+        if (args.length < 1) {
+        	System.out.println("Usage: java -jar Dash7Simulator.jar <COM PORT>");
+        	System.out.println("Remember to perform the following steps before running the simulator (Unix like OS):");
+        	System.out.println("1) > socat -d -d pty,raw,echo=0 pty,raw,echo=0");
+        	System.out.println("2) > sudo ln -s /dev/ttys00x /usr/commap/com1 (used by simulator)");
+        	System.out.println("3) > sudo ln -s /dev/ttys00x /usr/commap/com0 (used by OTCom)");
+        	System.out.println("4) Run OTCom");
+        	return;
+        }
+		
+		try {
+			mainThread = new SerialReaderThread(args[0]);
+		} catch (FileNotFoundException e) {
+			System.out.println("Usage: java -jar Dash7Simulator.jar <COM PORT>");
+        	System.out.println("Remember to perform the following steps before running the simulator (Unix like OS):");
+        	System.out.println("1) > socat -d -d pty,raw,echo=0 pty,raw,echo=0");
+        	System.out.println("2) > sudo ln -s /dev/ttys00x /usr/commap/com1 (used by simulator)");
+        	System.out.println("3) > sudo ln -s /dev/ttys00x /usr/commap/com0 (used by OTCom)");
+        	System.out.println("4) Run OTCom");
+        	System.out.println("");
+        	System.out.println(e.getMessage());
+		}
 		mainThread.start();
+		
+		System.out.println("Dash7 Simulator is running...press <ctrl + c> to exit");
+		
+		//Beacon simulator
+		int sequence = 0;
+		while(true) {
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				return;
+			}
+			
+			//Simulated beacon
+			byte[] payload = new byte[3];
+			payload[0] = (byte) 0x01;
+			payload[1]= (byte) 0x31;
+			payload[2]= (byte) 0x00;
+					
+			byte[] beacon = OTComSocket.Dash7Packet(STDash7Coordinator.ALP_ID,STDash7Coordinator.ALP_BEACON,payload,(char)(sequence++ & 0xFFFF));
+			
+			//Send beacon via UART
+			mainThread.reply(beacon);
+		}
 	}
 	
 	static class SerialReaderThread extends Thread {
@@ -183,7 +227,7 @@ public class Dash7CoordinatorSimulator {
     				//Simulated response
     				dash7Reply = OTComSocket.Dash7Packet(STDash7Coordinator.ALP_ID,alpCmdReply,payload,(char)(sequence & 0xFFFF));
     				
-    				//Send response over UART
+    				//Send response via UART
     				reply(dash7Reply);
         		}
     	}
@@ -194,7 +238,7 @@ public class Dash7CoordinatorSimulator {
             inBuffer = new byte[1024];
         }
         
-        private synchronized void reply(byte[] dash7Packet){
+        public synchronized void reply(byte[] dash7Packet){
         	System.out.printf("<-- Dash7 Packet[%d]: [ ",dash7Packet.length);
 			for(int i=0; i < dash7Packet.length; i++) {
 				System.out.printf("0x%02X ", dash7Packet[i]);

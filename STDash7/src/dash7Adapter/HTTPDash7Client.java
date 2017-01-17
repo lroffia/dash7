@@ -24,7 +24,7 @@ public class HTTPDash7Client {
 		getRequest = "http://" + server + ":8000/gettemp?id="+node;
 		return doRequest();
 	}
-	//Return: NODEID&VALVE&VALUE (VALUE can be = "TIMEOUT" oe "BUSY")
+	//Return: NODEID&VALVE&VALUE (VALUE can be = "TIMEOUT" or "BUSY")
 	public String SetValve(String node,int value){
 		this.node = node;
 		cmd = "VALVE";
