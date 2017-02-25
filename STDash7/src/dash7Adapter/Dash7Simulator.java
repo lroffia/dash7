@@ -53,11 +53,15 @@ public class Dash7Simulator {
 			}
 			
 			//Simulated beacon
-			byte[] payload = new byte[3];
-			payload[0] = (byte) 0x01;
-			payload[1]= (byte) 0x31;
-			payload[2]= (byte) 0x00;
+			// Node Address Len (1 Byte) | Node Address (1-32 bytes) | Payload len (1 byte) | Payload (0-221 bytes)
+			byte[] payload1 = new byte[] {6,'B','E','A','C','O','N',2,0x00,0x00};
+			byte[] payload2 = new byte[] {6,'B','E','A','C','O','N',2,(byte) 0xAA,(byte) 0xAA};
+		
+			byte[] payload;
 					
+			if (sequence%2 == 0) payload = payload1;
+			else payload = payload2;
+			
 			byte[] beacon = OTComSocket.Dash7Packet(STDash7Coordinator.ALP_ID,STDash7Coordinator.ALP_BEACON,payload,(char)(sequence++ & 0xFFFF));
 			
 			//Send beacon via UART

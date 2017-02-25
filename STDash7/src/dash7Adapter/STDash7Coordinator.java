@@ -23,7 +23,7 @@ public class STDash7Coordinator extends OTComSocket {
 	public static final byte ALP_GET_BATTERY_STATUS_REQUEST = 0x68;
 	public static final byte ALP_BATTERY_REPLY = 0x78;
 	
-	public static final byte ALP_BEACON = (byte) 0x98;
+	public static final byte ALP_BEACON = (byte) 0x10;
 	
 	public static final byte ALP_UNKNOWN_CMD_REPLY= (byte) 0xFE;
 	
@@ -55,7 +55,7 @@ public class STDash7Coordinator extends OTComSocket {
 		public float vBatt;
 	}
 	public class BeaconNotify extends Notify {
-		
+		public String status;
 	}
 	
 	//Notify DASH7 payload
@@ -95,12 +95,33 @@ public class STDash7Coordinator extends OTComSocket {
 				break;
 			case ALP_BEACON:
 				notify = new BeaconNotify();
+				((BeaconNotify)notify).status = getBeaconStatus(payload);
 				break;
 		}
 		notify.id = GetID(payload);
 		
 		setChanged();
 		notifyObservers(notify);
+	}
+	
+	private String getBeaconStatus(byte[] payload) {
+		//Status code
+		//0x00 0x00 ==> heart beat
+		//0xAA 0XAA ==> water
+		switch(payload[payload.length-1]) {
+			case 0x00:
+				switch(payload[payload.length-2]) {
+					case 0x00: return "Alive";
+				} 	
+				break;
+			case (byte) 0xAA:
+				switch(payload[payload.length-2]) {
+					case (byte) 0xAA: return "Water";
+				} 	
+				break;
+		}
+		
+		return "Unknown";
 	}
 	
 	private String GetID(byte[] payload) {
